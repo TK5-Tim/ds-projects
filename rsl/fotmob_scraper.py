@@ -81,8 +81,8 @@ def get_single_match_stats(match_id: int):
     df['aerial_duels_won_percentage'] = df['aerial_duels_won'].str.split(' ').str.get(1).str.replace("(","",regex=True).str.replace(")","",regex=True).str.replace("%","",regex=True)
     df['aerial_duels_won'] = df['aerial_duels_won'].str.split(' ').str.get(0)
 
-    df['dribbles_succeeded_percentage'] = df['dribbles_succeeded'].str.split(' ').str.get(1).str.replace("(","",regex=True).str.replace(")","",regex=True).str.replace("%","",regex=True)
-    df['dribbles_succeeded'] = df['dribbles_succeeded'].str.split(' ').str.get(0)
+    df['successful_dribbles_percentage'] = df['successful_dribbles'].str.split(' ').str.get(1).str.replace("(","",regex=True).str.replace(")","",regex=True).str.replace("%","",regex=True)
+    df['successful_dribbles'] = df['successful_dribbles'].str.split(' ').str.get(0)
 
     df['expected_goals_against_(xga)'] = df.loc[::-1,'expected_goals_(xg)'].reset_index(drop=True)
     df['xga_first_half'] = df.loc[::-1,'xg_first_half'].reset_index(drop=True)
@@ -141,7 +141,7 @@ def get_single_match_stats(match_id: int):
     'duels_won': 'int32',
     'ground_duels_won': 'int32', 
     'aerial_duels_won': 'int32', 
-    'dribbles_succeeded': 'int32',
+    'successful_dribbles': 'int32',
     'yellow_cards': 'int32', 
     'red_cards': 'int32', 
     'match_id': 'int32', 
@@ -152,7 +152,7 @@ def get_single_match_stats(match_id: int):
     'tackles_won_percentage': 'int32',
     'ground_duels_won_percentage': 'int32', 
     'aerial_duels_won_percentage': 'int32',
-    'dribbles_succeeded_percentage': 'int32', 
+    'successful_dribbles_percentage': 'int32', 
     'expected_goals_against_(xga)': 'float64',
     'xga_first_half': 'float64', 
     'xga_second_half': 'float64', 
