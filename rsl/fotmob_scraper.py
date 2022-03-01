@@ -198,3 +198,59 @@ def get_league_team_stats(league_id: int):
     df = df1.merge(df2,on=['team','team_short'],how='left')
     
     return df
+
+def get_single_match_shots(match_id: int):
+    enforce_delay()
+    response = get_single_match_data(match_id)
+
+    df_shots = pd.json_normalize(response['content']['shotmap']['shots'])
+    df_shots = df_shots.rename(columns={
+    'id': 'shot_id', 
+    'eventType': 'event_type', 
+    'teamId':'team_id', 
+    'playerId':'player_id', 
+    'playerName':'player_name', 
+    'x':'x_coord', 
+    'y':'y_coord', 
+    'min':'minutes',
+    'minAdded':'minutes_added', 
+    'isBlocked':'is_blockes', 
+    'isOnTarget':'is_on_target', 
+    'blockedX':'blocked_x_coord', 
+    'blockedY':'blocked_y_coord',
+    'goalCrossedY':'goal_crossed_y_coord', 
+    'goalCrossedZ':'goal_crossed_z_coord', 
+    'expectedGoals':'expected_goals',
+    'expectedGoalsOnTarget':'expected_goals_on_target', 
+    'shotType':'shot_type',  
+    'isOwnGoal':'is_own_goal',
+    'firstName':'first_name',
+    'lastName':'last_name', 
+    'onGoalShot.x':'on_goal_shot_x_coord',
+    'onGoalShot.y':'on_goal_shot_y_coord',
+    'onGoalShot.zoomRatio':'on_goal_shot_zoom_ratio',
+    })
+
+    df_in_rd = pd.json_normalize(response['content']['matchFacts'],['matchesInRound'])
+    df_teams = pd.DataFrame()
+    df_teams = df_teams.append(df_in_rd[['home.name','home.shortName','home.id']].rename(columns={'home.name':'team_name','home.shortName':'team_short_name','home.id':'team_id'}))
+    df_teams = df_teams.append(df_in_rd[['away.name','away.shortName','away.id']].rename(columns={'away.name':'team_name','away.shortName':'team_short_name','away.id':'team_id'}))
+
+    team_id_dict = pd.Series(df_teams['team_name'].values, index=df_teams['team_id'].astype(int)).to_dict()
+    df_shots['team'] = df_shots['team_id'].apply(lambda x: team_id_dict.get(x))
+
+    teams_dict = pd.Series(df_teams['team_short_name'].values,index=df_teams['team_name']).to_dict()
+    df_shots['team_short'] = df_shots['team'].apply(lambda x: teams_dict.get(x))
+
+    df_shots['minutes_added'].fillna(0,inplace=True)
+
+    return df_shots
+
+def get_league_shots(league_id: int):
+    enforce_delay()
+    fixtures = get_league_fixtures(league_id)
+    df_league_shots = pd.DataFrame()
+    for l in tqdm(fixtures):
+        df_league_shots = df_league_shots.append(get_single_match_shots(l)).reset_index(drop=True)
+    
+    return df_league_shots
