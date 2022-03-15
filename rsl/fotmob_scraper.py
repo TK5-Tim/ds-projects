@@ -105,7 +105,6 @@ def get_single_match_stats(match_id: int):
         df['xga_penalty'] = np.nan
     
     df.fillna(0,inplace=True)
-
     df = df.astype({
     'ball_possession': 'int32', 
     'expected_goals_(xg)': 'float64', 
@@ -119,7 +118,7 @@ def get_single_match_stats(match_id: int):
     'shots_off_target': 'int32', 
     'shots_on_target': 'int32',
     'blocked_shots': 'int32',
-    'shots_woodwork': 'int32', 
+    'hit_woodwork': 'int32', 
     'shots_inside_box': 'int32',
     'shots_outside_box': 'int32',
     'xg_first_half': 'float64', 
@@ -203,7 +202,12 @@ def get_single_match_shots(match_id: int):
     enforce_delay()
     response = get_single_match_data(match_id)
 
+    
+
     df_shots = pd.json_normalize(response['content']['shotmap']['shots'])
+
+    df_shots['match_id'] = match_id
+
     df_shots = df_shots.rename(columns={
     'id': 'shot_id', 
     'eventType': 'event_type', 
@@ -214,7 +218,7 @@ def get_single_match_shots(match_id: int):
     'y':'y_coord', 
     'min':'minutes',
     'minAdded':'minutes_added', 
-    'isBlocked':'is_blockes', 
+    'isBlocked':'is_blocked', 
     'isOnTarget':'is_on_target', 
     'blockedX':'blocked_x_coord', 
     'blockedY':'blocked_y_coord',
@@ -230,7 +234,6 @@ def get_single_match_shots(match_id: int):
     'onGoalShot.y':'on_goal_shot_y_coord',
     'onGoalShot.zoomRatio':'on_goal_shot_zoom_ratio',
     })
-
     df_in_rd = pd.json_normalize(response['content']['matchFacts'],['matchesInRound'])
     df_teams = pd.DataFrame()
     df_teams = df_teams.append(df_in_rd[['home.name','home.shortName','home.id']].rename(columns={'home.name':'team_name','home.shortName':'team_short_name','home.id':'team_id'}))
