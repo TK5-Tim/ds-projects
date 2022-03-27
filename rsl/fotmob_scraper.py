@@ -15,7 +15,7 @@ import time
 from tqdm import tqdm
 
 match_url = "https://www.fotmob.com/matchDetails?matchId={}"
-league_url = "https://www.fotmob.com/_next/data/3199/leagues/{}/overview/{}.json?id={}&tab=overview&slug={}"
+league_url = "https://www.fotmob.com/leagues?id={}"
 
 dict_league_name = {
     69 : "super-league"
@@ -169,8 +169,8 @@ def get_single_match_stats(match_id: int):
 def get_league_fixtures(league_id: int):
     enforce_delay()
     league_name = dict_league_name[69] 
-    response = requests.get(league_url.format(league_id,league_name,league_id,league_name)).json()
-    df_fixtures = pd.json_normalize(response['pageProps']['initialState']['league'][str(league_id)]['data'],record_path=['fixtures'])
+    response = requests.get(league_url.format(league_id)).json()
+    df_fixtures = pd.json_normalize(response,record_path=['fixtures'])
     return list(df_fixtures.loc[df_fixtures['notStarted'] == False,'id'].astype(int))
 
 def get_league_match_stats(league_id: int):
