@@ -5,6 +5,7 @@ Twitter: @imkeller_5
 Email: tim@tk5.futbol
 """
 
+from ast import Pass, Try
 from urllib import response
 import pandas as pd 
 import numpy as np
@@ -13,14 +14,23 @@ import seaborn as sns
 import requests
 import time
 from tqdm import tqdm
+import re
 
 match_url = "https://www.fotmob.com/matchDetails?matchId={}"
 league_url = "https://www.fotmob.com/leagues?id={}"
+alt_league_url = "https://www.fotmob.com/_next/data/{}/leagues/{}/overview/{}.json"
+page_url = "https://www.fotmob.com/"
 
 dict_league_name = {
     69 : "super-league"
 }
 api_delay=1.0
+
+ 
+def get_build_id():
+    return re.search(r"\"buildId\"\:\"(\d+)\"", requests.get(page_url).text).group(1)
+
+
 
 def enforce_delay():
     time.sleep(api_delay)
@@ -169,8 +179,14 @@ def get_single_match_stats(match_id: int):
 def get_league_fixtures(league_id: int):
     enforce_delay()
     league_name = dict_league_name[69] 
-    response = requests.get(league_url.format(league_id)).json()
-    df_fixtures = pd.json_normalize(response,record_path=['fixtures'])
+    try:
+        response = requests.get(league_url.format(league_id)).json()
+        df_fixtures = pd.json_normalize(response,record_path=['fixtures'])
+    except:
+        build_id = get_build_id()
+        response = requests.get(alt_league_url.format(build_id, league_id, dict_league_name[league_id])).json()
+        df_fixtures = pd.json_normalize(response['pageProps']['initialState']['league'][str(league_id)]['data'],record_path=['fixtures'])
+    
     return list(df_fixtures.loc[df_fixtures['notStarted'] == False,'id'].astype(int))
 
 def get_league_match_stats(league_id: int):
