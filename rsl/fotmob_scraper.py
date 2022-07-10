@@ -17,34 +17,22 @@ from tqdm import tqdm
 import re
 import json
 
-match_url = "https://www.fotmob.com/matchDetails?matchId={}"
-league_url = "https://www.fotmob.com/leagues?id={}"
+match_url = "https://www.fotmob.com/api/matchDetails?matchId={}"
+league_url = "https://www.fotmob.com/api/leagues?id={}"
 alt_league_url = "https://www.fotmob.com/_next/data/{}{}.json"
-page_url = "https://www.fotmob.com/"
+page_url = "https://www.fotmob.com/api"
+leagues_url = "https://www.fotmob.com/api/allLeagues"
 
 
 def get_league_url():
-    response = re.search(
-        r"type=\"application/json\">(.*)<\/script>", requests.get(page_url).text
-    ).group(1)
-    df_leagues = pd.concat(
-        [
-            pd.json_normalize(
-                json.loads(response)["props"]["pageProps"]["initialState"][
-                    "allLeagues"
-                ]["countries"],
-                record_path=["leagues"],
-            ),
-            pd.json_normalize(
-                json.loads(response)["props"]["pageProps"]["initialState"][
-                    "allLeagues"
-                ]["international"],
-                record_path=["leagues"],
-            ),
-        ],
-        ignore_index=True,
+    response = requests.get(leagues_url).json()
+    df_leagues = pd.concat([
+    pd.json_normalize(response['countries'], record_path=['leagues']),
+    pd.json_normalize(response['international'], record_path=['leagues'])
+    ], 
+    ignore_index=True
     )
-    return pd.Series(df_leagues.pageUrl.values, index=df_leagues.id).to_dict()
+    return pd.Series(df_leagues.name.values, index=df_leagues.id).to_dict()
 
 
 dict_league_name = get_league_url()
@@ -268,10 +256,11 @@ def get_single_match_stats(match_id: int):
 
 def get_league_fixtures(league_id: int):
     enforce_delay()
-    league_name = dict_league_name[69]
+    league_name = dict_league_name[league_id]
+    print("getting fixtures for {}".format(league_name))
     try:
         response = requests.get(league_url.format(league_id)).json()
-        df_fixtures = pd.json_normalize(response, record_path=["fixtures"])
+        df_fixtures = pd.json_normalize(response, record_path=["matches"])
     except:
         build_id = get_build_id()
         response = requests.get(
