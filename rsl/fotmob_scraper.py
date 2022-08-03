@@ -1,9 +1,4 @@
-"""
-Date: 2022-02-15
-Contributor: Tim Keller 
-Twitter: @imkeller_5
-Email: tim@tk5.futbol
-"""
+"""Scraper for https://fotmob.com/"""
 
 from ast import Pass, Try
 from urllib import response
