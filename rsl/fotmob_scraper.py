@@ -251,22 +251,8 @@ def get_single_match_stats(match_id: int):
 
 def get_league_fixtures(league_id: int):
     enforce_delay()
-    league_name = dict_league_name[league_id]
-    print("getting fixtures for {}".format(league_name))
-    try:
-        response = requests.get(league_url.format(league_id)).json()
-        df_fixtures = pd.json_normalize(response, record_path=["matches"])
-    except:
-        build_id = get_build_id()
-        response = requests.get(
-            alt_league_url.format(build_id, dict_league_name[league_id])
-        ).json()
-        df_fixtures = pd.json_normalize(
-            response["pageProps"]["initialState"]["league"][str(league_id)]["data"],
-            record_path=["fixtures"],
-        )
-
-    return list(df_fixtures.loc[df_fixtures["notStarted"] == False, "id"].astype(int))
+    df_fixtures = get_league_schedule(league_id)
+    return list(df_fixtures.loc[(df_fixtures["status.finished"] == True) & (df_fixtures["status.started"] == True), "id"].astype(int))
 
 def get_league_schedule(league_id: int):
     enforce_delay()
@@ -274,7 +260,7 @@ def get_league_schedule(league_id: int):
     print("getting fixtures for {}".format(league_name))
     try:
         response = requests.get(league_url.format(league_id)).json()
-        df_fixtures = pd.json_normalize(response, record_path=["matches"])
+        df_fixtures = pd.json_normalize(response['matches']['data']['allMatches'])
     except:
         build_id = get_build_id()
         response = requests.get(
@@ -285,7 +271,7 @@ def get_league_schedule(league_id: int):
             record_path=["fixtures"],
         )
 
-    return list(df_fixtures)
+    return df_fixtures
 
 
 def get_league_match_stats(league_id: int):
