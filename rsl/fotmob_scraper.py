@@ -67,15 +67,15 @@ def get_single_match_stats(match_id: int):
 
     df_in_rd = pd.json_normalize(response["content"]["matchFacts"], ["matchesInRound"])
     df_teams = pd.DataFrame()
-    df_teams = df_teams.append(
+    df_teams = pd.concat([df_teams,
         df_in_rd[["home.name", "home.shortName"]].rename(
             columns={"home.name": "team_name", "home.shortName": "team_short_name"}
-        )
+        )]
     )
-    df_teams = df_teams.append(
+    df_teams = pd.concat([df_teams,
         df_in_rd[["away.name", "away.shortName"]].rename(
             columns={"away.name": "team_name", "away.shortName": "team_short_name"}
-        )
+        )]
     )
 
     teams_dict = pd.Series(
@@ -279,7 +279,7 @@ def get_league_match_stats(league_id: int):
     fixtures = get_league_fixtures(league_id)
     df_league_stats = pd.DataFrame()
     for l in tqdm(fixtures):
-        df_league_stats = df_league_stats.append(get_single_match_stats(l)).reset_index(
+        df_league_stats = pd.concat([df_league_stats,get_single_match_stats(l)], axis=0).reset_index(
             drop=True
         )
     return df_league_stats
@@ -346,23 +346,23 @@ def get_single_match_shots(match_id: int):
     )
     df_in_rd = pd.json_normalize(response["content"]["matchFacts"], ["matchesInRound"])
     df_teams = pd.DataFrame()
-    df_teams = df_teams.append(
+    df_teams = pd.concat([df_teams,
         df_in_rd[["home.name", "home.shortName", "home.id"]].rename(
             columns={
                 "home.name": "team_name",
                 "home.shortName": "team_short_name",
                 "home.id": "team_id",
             }
-        )
+        )], axis=0
     )
-    df_teams = df_teams.append(
+    df_teams = pd.concat([df_teams,
         df_in_rd[["away.name", "away.shortName", "away.id"]].rename(
             columns={
                 "away.name": "team_name",
                 "away.shortName": "team_short_name",
                 "away.id": "team_id",
             }
-        )
+        )], axis=0
     )
 
     team_id_dict = pd.Series(
@@ -385,8 +385,47 @@ def get_league_shots(league_id: int):
     fixtures = get_league_fixtures(league_id)
     df_league_shots = pd.DataFrame()
     for l in tqdm(fixtures):
-        df_league_shots = df_league_shots.append(get_single_match_shots(l)).reset_index(
-            drop=True
-        )
+        df_league_shots = pd.conact([df_league_shots,get_single_match_shots(l)]).reset_index(drop=True)
 
     return df_league_shots
+
+def get_missing_league_shots(league_id: int, df_league_shots: pd.DataFrame):
+    enforce_delay()
+    fixtures = get_league_fixtures(league_id)
+    missing_games = [x for x in fixtures if x not in df_league_shots.match_id.unique()]
+    for l in tqdm(missing_games):
+        df_league_shots = pd.concat([df_league_shots, get_single_match_shots(l)], axis=0).reset_index(drop=True)
+
+    return df_league_shots
+
+def get_missing_league_match_stats(league_id: int, df_league_stats: pd.DataFrame):
+    enforce_delay()
+    fixtures = get_league_fixtures(league_id)
+    missing_games = [x for x in fixtures if x not in df_league_stats.match_id.unique()]
+    for l in tqdm(missing_games):
+        df_league_stats = pd.concat([df_league_stats,get_single_match_stats(l)], axis=0).reset_index(
+            drop=True
+        )
+    return df_league_stats
+
+def get_missing_league_team_stats(league_id: int, df_match_stats: pd.DataFrame):
+    enforce_delay()
+    df = get_missing_league_match_stats(league_id, df_match_stats)
+    df = df.drop("match_id", axis=1)
+    df = df.drop("match_round", axis=1)
+
+    df["goals_against_over_expected"] = df["goals_against"].subtract(
+        df["expected_goals_against_(xga)"]
+    )
+    df["goals_over_expected"] = df["goals"].subtract(df["expected_goals_(xg)"])
+
+    df1 = df.groupby(["team", "team_short"]).mean().reset_index()
+    df1.columns = [col + "_mean" for col in df1.columns]
+    df1 = df1.rename(columns={"team_mean": "team", "team_short_mean": "team_short"})
+
+    df2 = df.groupby(["team", "team_short"]).sum().reset_index()
+    df2.columns = [col + "_sum" for col in df2.columns]
+    df2 = df2.rename(columns={"team_sum": "team", "team_short_sum": "team_short"})
+    df = df1.merge(df2, on=["team", "team_short"], how="left")
+
+    return df
