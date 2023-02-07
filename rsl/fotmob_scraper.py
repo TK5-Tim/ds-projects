@@ -344,7 +344,9 @@ def get_single_match_shots(match_id: int):
             "onGoalShot.zoomRatio": "on_goal_shot_zoom_ratio",
         }
     )
+
     df_in_rd = pd.json_normalize(response["content"]["matchFacts"], ["matchesInRound"])
+
     df_teams = pd.DataFrame()
     df_teams = pd.concat([df_teams,
         df_in_rd[["home.name", "home.shortName", "home.id"]].rename(
@@ -368,6 +370,7 @@ def get_single_match_shots(match_id: int):
     team_id_dict = pd.Series(
         df_teams["team_name"].values, index=df_teams["team_id"].astype(int)
     ).to_dict()
+
     df_shots["team"] = df_shots["team_id"].apply(lambda x: team_id_dict.get(x))
 
     teams_dict = pd.Series(
@@ -377,6 +380,15 @@ def get_single_match_shots(match_id: int):
 
     df_shots["minutes_added"].fillna(0, inplace=True)
 
+    team_opponent_id_dict = pd.concat(
+        [
+            pd.Series(df_in_rd["home.id"].values.astype(int), index=df_in_rd["away.id"].astype(int)),
+            pd.Series(df_in_rd["away.id"].values.astype(int), index=df_in_rd["home.id"].astype(int))
+        ]
+    ).to_dict()
+
+    df_shots["opponent_id"] = df_shots["team_id"].apply(lambda x: team_opponent_id_dict.get(x))
+    df_shots["opponent_short"] = df_shots["opponent_id"].apply(lambda x: team_id_dict.get(x))
     return df_shots
 
 
@@ -429,3 +441,51 @@ def get_missing_league_team_stats(league_id: int, df_match_stats: pd.DataFrame):
     df = df1.merge(df2, on=["team", "team_short"], how="left")
 
     return df
+
+def get_single_match_lineup(match_id: int):
+    enforce_delay()
+    response = get_single_match_data(match_id)
+    df_lineup = pd.DataFrame()
+    team_infos = pd.json_normalize(response["content"]["lineup"]["lineup"])[['teamId','teamName']].to_dict()
+
+    lineup_team_0 = pd.DataFrame()
+    for i in range(len(response["content"]["lineup"]["lineup"][0]['players'])):
+        lineup_team_0 = pd.concat([lineup_team_0, pd.json_normalize(response["content"]["lineup"]["lineup"][0]['players'][i])])
+
+    lineup_team_0['timeSubbedOn'] = lineup_team_0['timeSubbedOn'].fillna(0)
+    bench_team_0 = pd.json_normalize(response["content"]["lineup"]["lineup"][0]['bench'])
+    lineup_team_0 = pd.concat([lineup_team_0,bench_team_0])
+    lineup_team_0['team_name'] = team_infos['teamName'][0]
+    lineup_team_0['team_id'] = team_infos['teamId'][0]
+    df_lineup = pd.concat([df_lineup,lineup_team_0])
+
+    lineup_team_1 = pd.DataFrame()
+    for i in range(len(response["content"]["lineup"]["lineup"][1]['players'])):
+        lineup_team_1 = pd.concat([lineup_team_1,pd.json_normalize(response["content"]["lineup"]["lineup"][1]['players'][i])])
+    lineup_team_1['timeSubbedOn'] = lineup_team_1['timeSubbedOn'].fillna(0)
+    bench_team_1 = pd.json_normalize(response["content"]["lineup"]["lineup"][1]['bench'])
+    lineup_team_1 = pd.concat([lineup_team_1,bench_team_1])
+    lineup_team_1['team_name'] = team_infos['teamName'][1]
+    lineup_team_1['team_id'] = team_infos['teamId'][1]
+    df_lineup = pd.concat([df_lineup,lineup_team_1])
+    df_lineup = df_lineup.drop(columns=['usingOptaId', 'usualPosition', 'positionRow', 'shotmap', 'stats', 'rating.num', 'rating.bgcolor',
+        'rating.isTop.isTopRating', 'rating.isTop.isMatchFinished',
+        'fantasyScore.bgcolor', 'events.sub.subbedOut',
+        'events.yc', 'events.g', 'events.as', 'events.sub.subbedIn', 'teamData.home.color', 'teamData.away.color', 'teamData.home.id', 'teamData.away.id'])
+    df_lineup.columns = df_lineup.columns.str.lower()
+    df_lineup.columns = df_lineup.columns.str.replace(" ", "_")
+    df_lineup.rename(columns={
+        'id':'player_id',
+        'imageurl':'player_image',
+        'pageurl':'player_page',
+        'shirt':'player_shirt_number',
+        'ishometeam': 'is_home_team',
+        'timesubbedon' : 'time_subbed_on',
+        'timesubbedoff': 'time_subbed_off',
+        'minutesplayed': 'minutes_played', 
+        'positionstringshort': 'position_short',
+        'name.firstname': 'player_first_name', 
+        'name.lastname': 'player_last_name'
+        }, inplace=True)
+
+    return df_lineup
