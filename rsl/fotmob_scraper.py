@@ -388,7 +388,13 @@ def get_single_match_shots(match_id: int):
     ).to_dict()
 
     df_shots["opponent_id"] = df_shots["team_id"].apply(lambda x: team_opponent_id_dict.get(x))
-    df_shots["opponent_short"] = df_shots["opponent_id"].apply(lambda x: team_id_dict.get(x))
+    df_shots["opponent_team"] = df_shots["opponent_id"].apply(lambda x: team_id_dict.get(x))
+    
+    # get the keeper facing the shot
+    df_lineup = get_single_match_lineup(match_id)
+    df_lineup_gk = df_lineup[df_lineup.role == 'Keeper']
+    df_shots['keeer_shot_faced'] = df_shots[['opponent_team','minutes']].apply(lambda x: df_lineup_gk.loc[(df_lineup_gk['team_name'] == x['opponent_team']) & (df_lineup_gk['time_subbed_on'] <= x['minutes']) & ((df_lineup_gk['time_subbed_off'] >= x['minutes']) | (df_lineup_gk['time_subbed_off'].isnull())), 'player_last_name'], axis=1)
+    
     return df_shots
 
 
