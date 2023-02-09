@@ -393,7 +393,7 @@ def get_single_match_shots(match_id: int):
     # get the keeper facing the shot
     df_lineup = get_single_match_lineup(match_id)
     df_lineup_gk = df_lineup[df_lineup.role == 'Keeper']
-    df_shots['keeer_shot_faced'] = df_shots[['opponent_team','minutes']].apply(lambda x: df_lineup_gk.loc[(df_lineup_gk['team_name'] == x['opponent_team']) & (df_lineup_gk['time_subbed_on'] <= x['minutes']) & ((df_lineup_gk['time_subbed_off'] >= x['minutes']) | (df_lineup_gk['time_subbed_off'].isnull())), 'player_last_name'], axis=1)
+    df_shots['keeper_shot_faced'] = df_shots[['opponent_team','minutes']].apply(lambda x: df_lineup_gk.loc[(df_lineup_gk['team_name'] == x['opponent_team']) & (df_lineup_gk['time_subbed_on'] < x['minutes']) & ((df_lineup_gk['time_subbed_off'] >= x['minutes']) | (df_lineup_gk['time_subbed_off'].isnull())), 'player_last_name'].values[0], axis=1)
     
     return df_shots
 
@@ -403,7 +403,7 @@ def get_league_shots(league_id: int):
     fixtures = get_league_fixtures(league_id)
     df_league_shots = pd.DataFrame()
     for l in tqdm(fixtures):
-        df_league_shots = pd.conact([df_league_shots,get_single_match_shots(l)]).reset_index(drop=True)
+        df_league_shots = pd.concat([df_league_shots,get_single_match_shots(l)]).reset_index(drop=True)
 
     return df_league_shots
 
@@ -474,10 +474,9 @@ def get_single_match_lineup(match_id: int):
     lineup_team_1['team_name'] = team_infos['teamName'][1]
     lineup_team_1['team_id'] = team_infos['teamId'][1]
     df_lineup = pd.concat([df_lineup,lineup_team_1])
-    df_lineup = df_lineup.drop(columns=['usingOptaId', 'usualPosition', 'positionRow', 'shotmap', 'stats', 'rating.num', 'rating.bgcolor',
-        'rating.isTop.isTopRating', 'rating.isTop.isMatchFinished',
-        'fantasyScore.bgcolor', 'events.sub.subbedOut',
-        'events.yc', 'events.g', 'events.as', 'events.sub.subbedIn', 'teamData.home.color', 'teamData.away.color', 'teamData.home.id', 'teamData.away.id'])
+    df_lineup = df_lineup[['id', 'imageUrl', 'pageUrl', 'shirt', 'isHomeTeam', 'timeSubbedOn',
+       'timeSubbedOff', 'role', 'minutesPlayed', 'positionStringShort',
+       'name.firstName', 'name.lastName', 'team_name', 'team_id']]
     df_lineup.columns = df_lineup.columns.str.lower()
     df_lineup.columns = df_lineup.columns.str.replace(" ", "_")
     df_lineup.rename(columns={
