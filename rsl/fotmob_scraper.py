@@ -258,18 +258,8 @@ def get_league_schedule(league_id: int):
     enforce_delay()
     league_name = dict_league_name[league_id]
     print("getting fixtures for {}".format(league_name))
-    try:
-        response = requests.get(league_url.format(league_id)).json()
-        df_fixtures = pd.json_normalize(response['matches']['data']['allMatches'])
-    except:
-        build_id = get_build_id()
-        response = requests.get(
-            alt_league_url.format(build_id, dict_league_name[league_id])
-        ).json()
-        df_fixtures = pd.json_normalize(
-            response["pageProps"]["initialState"]["league"][str(league_id)]["data"],
-            record_path=["fixtures"],
-        )
+    response = requests.get(league_url.format(league_id)).json()
+    df_fixtures = pd.json_normalize(response['matches']['allMatches'])
 
     return df_fixtures
 
@@ -499,7 +489,6 @@ def get_single_match_player_stats(match_id: int):
         df_player_stats = pd.concat([df_player_stats, df_temp], ignore_index=True)
 
     df_lineup = df_lineup.merge(df_player_stats, on='player_id', how='left')
-
     df_lineup = df_lineup[[
         'player_id', 
         'player_shirt_number', 
@@ -532,7 +521,6 @@ def get_single_match_player_stats(match_id: int):
         'stats.Chances created', 
         'stats.Expected assists (xA)',
         'stats.Successful dribbles', 
-        'stats.Passes into final third',
         'stats.Accurate crosses', 
         'stats.Dispossessed', 
         'stats.Tackles won',
@@ -548,7 +536,6 @@ def get_single_match_player_stats(match_id: int):
         'stats.Expected goals (xG)', 
         'stats.Shot accuracy',
         'stats.Expected goals on target (xGOT)', 
-        'stats.Big chance missed',
         'stats.Blocked shots', 
         'stats.Corners']]
     
@@ -571,7 +558,6 @@ def get_single_match_player_stats(match_id: int):
         'stats.Chances created': 'chances_created', 
         'stats.Expected assists (xA)': 'expected_assists_(xa)',
         'stats.Successful dribbles': 'successful_dribbles', 
-        'stats.Passes into final third': 'passes_into_final_third',
         'stats.Accurate crosses': 'accurate_crosses', 
         'stats.Dispossessed': 'dispossessed', 
         'stats.Tackles won': 'tackles_won',
@@ -587,7 +573,6 @@ def get_single_match_player_stats(match_id: int):
         'stats.Expected goals (xG)': 'expected_goals_(xg)', 
         'stats.Shot accuracy': 'shot_accuracy',
         'stats.Expected goals on target (xGOT)': 'expected_goals_on_target_(xgot)', 
-        'stats.Big chance missed': 'big_chance_missed',
         'stats.Blocked shots': 'blocked_shots', 
         'stats.Corners': 'corners',
     })
