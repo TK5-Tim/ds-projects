@@ -448,7 +448,7 @@ def get_missing_league_team_stats(league_id: int, df_match_stats: pd.DataFrame):
 
     return df
 
-def get_single_match_lineup(match_id: int):
+def get_single_match_player_stats(match_id: int):
     enforce_delay()
     response = get_single_match_data(match_id)
     df_lineup = pd.DataFrame()
@@ -474,9 +474,6 @@ def get_single_match_lineup(match_id: int):
     lineup_team_1['team_name'] = team_infos['teamName'][1]
     lineup_team_1['team_id'] = team_infos['teamId'][1]
     df_lineup = pd.concat([df_lineup,lineup_team_1])
-    df_lineup = df_lineup[['id', 'imageUrl', 'pageUrl', 'shirt', 'isHomeTeam', 'timeSubbedOn',
-       'timeSubbedOff', 'role', 'minutesPlayed', 'positionStringShort',
-       'name.firstName', 'name.lastName', 'team_name', 'team_id']]
     df_lineup.columns = df_lineup.columns.str.lower()
     df_lineup.columns = df_lineup.columns.str.replace(" ", "_")
     df_lineup.rename(columns={
@@ -493,4 +490,211 @@ def get_single_match_lineup(match_id: int):
         'name.lastname': 'player_last_name'
         }, inplace=True)
 
+    df_player_stats = pd.DataFrame()
+    for i in range(len(df_lineup)):
+        df_temp = pd.json_normalize(df_lineup.stats.iloc[i]).drop(columns=['title'])
+        df_temp['player_id'] = df_lineup.player_id.iloc[i]
+        df_temp = df_temp.groupby('player_id').bfill().head(1)
+        df_temp['player_id'] = df_lineup.player_id.iloc[i]
+        df_player_stats = pd.concat([df_player_stats, df_temp], ignore_index=True)
+
+    df_lineup = df_lineup.merge(df_player_stats, on='player_id', how='left')
+
+    df_lineup = df_lineup[[
+        'player_id', 
+        'player_shirt_number', 
+        'is_home_team', 
+        'time_subbed_on',
+        'time_subbed_off', 
+        'usualposition', 
+        'role',
+        'minutes_played', 
+        'position_short',
+        'player_first_name', 
+        'player_last_name', 
+        'team_name', 
+        'team_id', 
+        'stats.Saves', 
+        'stats.Goals conceded',
+        'stats.xGOT faced', 
+        'stats.Accurate passes',
+        'stats.Accurate long balls', 
+        'stats.Diving save',
+        'stats.Saves inside box', 
+        'stats.Punches',
+        'stats.Throws', 
+        'stats.High claim', 
+        'stats.Recoveries', 
+        'stats.Touches',
+        'stats.Goals', 
+        'stats.Assists', 
+        'stats.Total shots',
+        'stats.Chances created', 
+        'stats.Expected assists (xA)',
+        'stats.Successful dribbles', 
+        'stats.Passes into final third',
+        'stats.Accurate crosses', 
+        'stats.Dispossessed', 
+        'stats.Tackles won',
+        'stats.Blocks', 
+        'stats.Clearances', 
+        'stats.Headed clearance',
+        'stats.Interceptions', 
+        'stats.Dribbled past', 
+        'stats.Ground duels won',
+        'stats.Aerial duels won', 
+        'stats.Was fouled', 
+        'stats.Fouls committed',
+        'stats.Expected goals (xG)', 
+        'stats.Shot accuracy',
+        'stats.Expected goals on target (xGOT)', 
+        'stats.Big chance missed',
+        'stats.Blocked shots', 
+        'stats.Corners']]
+    
+    df_lineup = df_lineup.rename(columns={
+        'stats.Saves': 'saves', 
+        'stats.Goals conceded': 'goals_conceded',
+        'stats.xGOT faced': 'xgot_faced', 
+        'stats.Accurate passes': 'accurate_passes',
+        'stats.Accurate long balls': 'accurate_long_balls',
+        'stats.Diving save': 'diving_save',
+        'stats.Saves inside box': 'saves_inside_box',
+        'stats.Punches': 'punches',
+        'stats.Throws': 'throws', 
+        'stats.High claim': 'high_claim', 
+        'stats.Recoveries': 'recoveries', 
+        'stats.Touches': 'touches',
+        'stats.Goals': 'goals', 
+        'stats.Assists': 'assists', 
+        'stats.Total shots': 'total_shots',
+        'stats.Chances created': 'chances_created', 
+        'stats.Expected assists (xA)': 'expected_assists_(xa)',
+        'stats.Successful dribbles': 'successful_dribbles', 
+        'stats.Passes into final third': 'passes_into_final_third',
+        'stats.Accurate crosses': 'accurate_crosses', 
+        'stats.Dispossessed': 'dispossessed', 
+        'stats.Tackles won': 'tackles_won',
+        'stats.Blocks': 'blocks', 
+        'stats.Clearances': 'clearances', 
+        'stats.Headed clearance': 'headed_clearance',
+        'stats.Interceptions': 'interceptions', 
+        'stats.Dribbled past': 'dribbled_past', 
+        'stats.Ground duels won': 'ground_duels_won',
+        'stats.Aerial duels won': 'aerial_duels_won', 
+        'stats.Was fouled': 'was_fouled', 
+        'stats.Fouls committed': 'fouls_committed',
+        'stats.Expected goals (xG)': 'expected_goals_(xg)', 
+        'stats.Shot accuracy': 'shot_accuracy',
+        'stats.Expected goals on target (xGOT)': 'expected_goals_on_target_(xgot)', 
+        'stats.Big chance missed': 'big_chance_missed',
+        'stats.Blocked shots': 'blocked_shots', 
+        'stats.Corners': 'corners',
+    })
+
+    df_lineup["accurate_crosses_percentage"] = (
+        df_lineup["accurate_crosses"]
+        .str.split(" ")
+        .str.get(1)
+        .str.replace("(", "", regex=True)
+        .str.replace(")", "", regex=True)
+        .str.replace("%", "", regex=True)
+    )
+    df_lineup["accurate_crosses"], df_lineup["attempted_crosses"] = df_lineup["accurate_crosses"].str.split(" ").str.get(0).str.split("/").str.get(0), df_lineup["accurate_crosses"].str.split(" ").str.get(0).str.split("/").str.get(1)
+
+    df_lineup["accurate_passes_percentage"] = (
+        df_lineup["accurate_passes"]
+        .str.split(" ")
+        .str.get(1)
+        .str.replace("(", "", regex=True)
+        .str.replace(")", "", regex=True)
+        .str.replace("%", "", regex=True)
+    )
+    df_lineup["accurate_passes"], df_lineup["attempted_passes"] = df_lineup["accurate_passes"].str.split(" ").str.get(0).str.split("/").str.get(0), df_lineup["accurate_passes"].str.split(" ").str.get(0).str.split("/").str.get(1)
+
+    df_lineup["accurate_long_balls_percentage"] = (
+        df_lineup["accurate_long_balls"]
+        .str.split(" ")
+        .str.get(1)
+        .str.replace("(", "", regex=True)
+        .str.replace(")", "", regex=True)
+        .str.replace("%", "", regex=True)
+    )
+    df_lineup["accurate_long_balls"], df_lineup["attempted_long_balls"] = df_lineup["accurate_long_balls"].str.split(" ").str.get(0).str.split("/").str.get(0), df_lineup["accurate_long_balls"].str.split(" ").str.get(0).str.split("/").str.get(1)
+
+    df_lineup["successful_dribbles_percentage"] = (
+        df_lineup["successful_dribbles"]
+        .str.split(" ")
+        .str.get(1)
+        .str.replace("(", "", regex=True)
+        .str.replace(")", "", regex=True)
+        .str.replace("%", "", regex=True)
+    )
+    df_lineup["successful_dribbles"], df_lineup["attempted_dribbles"] = df_lineup["successful_dribbles"].str.split(" ").str.get(0).str.split("/").str.get(0), df_lineup["successful_dribbles"].str.split(" ").str.get(0).str.split("/").str.get(1)
+
+    df_lineup["tackles_won_percentage"] = (
+        df_lineup["tackles_won"]
+        .str.split(" ")
+        .str.get(1)
+        .str.replace("(", "", regex=True)
+        .str.replace(")", "", regex=True)
+        .str.replace("%", "", regex=True)
+    )
+    df_lineup["tackles_won"], df_lineup["attempted_tackles"] = df_lineup["tackles_won"].str.split(" ").str.get(0).str.split("/").str.get(0), df_lineup["tackles_won"].str.split(" ").str.get(0).str.split("/").str.get(1)
+    
+    df_lineup["ground_duels_won_percentage"] = (
+        df_lineup["ground_duels_won"]
+        .str.split(" ")
+        .str.get(1)
+        .str.replace("(", "", regex=True)
+        .str.replace(")", "", regex=True)
+        .str.replace("%", "", regex=True)
+    )
+    df_lineup["ground_duels_won"], df_lineup["attempted_ground_duels"] = df_lineup["ground_duels_won"].str.split(" ").str.get(0).str.split("/").str.get(0), df_lineup["ground_duels_won"].str.split(" ").str.get(0).str.split("/").str.get(1)
+    
+    df_lineup["aerial_duels_won_percentage"] = (
+        df_lineup["aerial_duels_won"]
+        .str.split(" ")
+        .str.get(1)
+        .str.replace("(", "", regex=True)
+        .str.replace(")", "", regex=True)
+        .str.replace("%", "", regex=True)
+    )
+    df_lineup["aerial_duels_won"], df_lineup["attempted_aerial_duels"] = df_lineup["aerial_duels_won"].str.split(" ").str.get(0).str.split("/").str.get(0), df_lineup["aerial_duels_won"].str.split(" ").str.get(0).str.split("/").str.get(1)
+    
+    df_lineup["accurate_shots_percentage"] = (
+        df_lineup["shot_accuracy"]
+        .str.split(" ")
+        .str.get(1)
+        .str.replace("(", "", regex=True)
+        .str.replace(")", "", regex=True)
+        .str.replace("%", "", regex=True)
+    )
+    df_lineup["accurate_shots"], df_lineup["attempted_shots"] = df_lineup["shot_accuracy"].str.split(" ").str.get(0).str.split("/").str.get(0), df_lineup["shot_accuracy"].str.split(" ").str.get(0).str.split("/").str.get(1)
+    df_lineup.drop(columns=["shot_accuracy"], inplace=True)
+
+    df_lineup = df_lineup.fillna(0)
+
     return df_lineup
+
+def get_league_player_stats(league_id: int):
+    enforce_delay()
+    fixtures = get_league_fixtures(league_id)
+    df_league_player_stats = pd.DataFrame()
+    for l in tqdm(fixtures):
+        df_single_match_player_stats = get_single_match_player_stats(l)
+        df_single_match_player_stats["match_id"] = l
+        df_league_player_stats = pd.concat([df_league_player_stats,df_single_match_player_stats]).reset_index(drop=True)
+
+    return df_league_player_stats
+
+def get_missing_league_player_stats(league_id: int, df_league_player_stats: pd.DataFrame):
+    enforce_delay()
+    fixtures = get_league_fixtures(league_id)
+    missing_games = [x for x in fixtures if x not in df_league_player_stats.match_id.unique()]
+    for l in tqdm(missing_games):
+        df_single_match_player_stats = get_single_match_player_stats(l)
+        df_single_match_player_stats["match_id"] = l
+        df_league_player_stats = pd.concat([df_league_player_stats, df_single_match_player_stats], axis=0).reset_index(drop=True)
+
+    return df_league_player_stats
