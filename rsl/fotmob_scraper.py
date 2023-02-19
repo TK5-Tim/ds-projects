@@ -664,22 +664,28 @@ def get_single_match_player_stats(match_id: int):
 
 def get_league_player_stats(league_id: int):
     enforce_delay()
-    fixtures = get_league_fixtures(league_id)
+    df_schedule = get_league_schedule(league_id)
+    df_schedule = df_schedule[(df_schedule["status.finished"] == True) & (df_schedule["status.started"] == True)]
     df_league_player_stats = pd.DataFrame()
-    for l in tqdm(fixtures):
-        df_single_match_player_stats = get_single_match_player_stats(l)
-        df_single_match_player_stats["match_id"] = l
+    for rd, id in tqdm(df_schedule[['round', 'id']].values):
+        df_single_match_player_stats = get_single_match_player_stats(id)
+        df_single_match_player_stats["match_id"] = id
+        df_single_match_player_stats["round"] = rd
         df_league_player_stats = pd.concat([df_league_player_stats,df_single_match_player_stats]).reset_index(drop=True)
 
     return df_league_player_stats
 
 def get_missing_league_player_stats(league_id: int, df_league_player_stats: pd.DataFrame):
     enforce_delay()
-    fixtures = get_league_fixtures(league_id)
-    missing_games = [x for x in fixtures if x not in df_league_player_stats.match_id.unique()]
-    for l in tqdm(missing_games):
-        df_single_match_player_stats = get_single_match_player_stats(l)
-        df_single_match_player_stats["match_id"] = l
-        df_league_player_stats = pd.concat([df_league_player_stats, df_single_match_player_stats], axis=0).reset_index(drop=True)
+    df_schedule = get_league_schedule(league_id)
+    missing_games = [x for x in df_schedule.id.values if x not in df_league_player_stats.match_id.unique()]
+    df_schedule = df_schedule[(df_schedule["status.finished"] == True) & (df_schedule["status.started"] == True)]
+    df_schedule = df_schedule[df_schedule.id.isin(missing_games)]
+    df_league_player_stats = pd.DataFrame()
+    for rd, id in tqdm(df_schedule[['round', 'id']].values):
+        df_single_match_player_stats = get_single_match_player_stats(id)
+        df_single_match_player_stats["match_id"] = id
+        df_single_match_player_stats["round"] = rd
+        df_league_player_stats = pd.concat([df_league_player_stats,df_single_match_player_stats]).reset_index(drop=True)
 
     return df_league_player_stats
