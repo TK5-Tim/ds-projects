@@ -259,7 +259,10 @@ def get_league_schedule(league_id: int):
     league_name = dict_league_name[league_id]
     print("getting fixtures for {}".format(league_name))
     response = requests.get(league_url.format(league_id)).json()
-    df_fixtures = pd.json_normalize(response['matches']['allMatches'])
+    try:
+        df_fixtures = pd.json_normalize(response['matches']['data']['matches'])
+    except KeyError:
+        df_fixtures = pd.json_normalize(response['matches']['allMatches'])
 
     return df_fixtures
 
@@ -437,6 +440,52 @@ def get_missing_league_team_stats(league_id: int, df_match_stats: pd.DataFrame):
     df = df1.merge(df2, on=["team", "team_short"], how="left")
 
     return df
+
+
+def get_single_match_lineup(match_id: int):
+    enforce_delay()
+    response = get_single_match_data(match_id)
+    df_lineup = pd.DataFrame()
+    team_infos = pd.json_normalize(response["content"]["lineup"]["lineup"])[['teamId','teamName']].to_dict()
+    lineup_team_0 = pd.DataFrame()
+    for i in range(len(response["content"]["lineup"]["lineup"][0]['players'])):
+        lineup_team_0 = pd.concat([lineup_team_0, pd.json_normalize(response["content"]["lineup"]["lineup"][0]['players'][i])])
+    lineup_team_0['timeSubbedOn'] = lineup_team_0['timeSubbedOn'].fillna(0)
+    bench_team_0 = pd.json_normalize(response["content"]["lineup"]["lineup"][0]['bench'])
+    lineup_team_0 = pd.concat([lineup_team_0,bench_team_0])
+    lineup_team_0['team_name'] = team_infos['teamName'][0]
+    lineup_team_0['team_id'] = team_infos['teamId'][0]
+    df_lineup = pd.concat([df_lineup,lineup_team_0])
+    lineup_team_1 = pd.DataFrame()
+    for i in range(len(response["content"]["lineup"]["lineup"][1]['players'])):
+        lineup_team_1 = pd.concat([lineup_team_1,pd.json_normalize(response["content"]["lineup"]["lineup"][1]['players'][i])])
+    lineup_team_1['timeSubbedOn'] = lineup_team_1['timeSubbedOn'].fillna(0)
+    bench_team_1 = pd.json_normalize(response["content"]["lineup"]["lineup"][1]['bench'])
+    lineup_team_1 = pd.concat([lineup_team_1,bench_team_1])
+    lineup_team_1['team_name'] = team_infos['teamName'][1]
+    lineup_team_1['team_id'] = team_infos['teamId'][1]
+    df_lineup = pd.concat([df_lineup,lineup_team_1])
+    df_lineup = df_lineup[['id', 'imageUrl', 'pageUrl', 'shirt', 'isHomeTeam', 'timeSubbedOn',
+    'timeSubbedOff', 'role', 'minutesPlayed', 'positionStringShort',
+    'name.firstName', 'name.lastName', 'team_name', 'team_id']]
+    df_lineup.columns = df_lineup.columns.str.lower()
+    df_lineup.columns = df_lineup.columns.str.replace(" ", "_")
+    df_lineup.rename(columns={
+    'id':'player_id',
+    'imageurl':'player_image',
+    'pageurl':'player_page',
+    'shirt':'player_shirt_number',
+    'ishometeam': 'is_home_team',
+    'timesubbedon' : 'time_subbed_on',
+    'timesubbedoff': 'time_subbed_off',
+    'minutesplayed': 'minutes_played', 
+    'positionstringshort': 'position_short',
+    'name.firstname': 'player_first_name', 
+        'name.lastname': 'player_last_name'
+        }, inplace=True)
+
+    return df_lineup
+
 
 def get_single_match_player_stats(match_id: int):
     enforce_delay()
