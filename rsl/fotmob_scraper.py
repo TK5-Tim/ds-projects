@@ -54,8 +54,8 @@ def get_single_match_stats(match_id: int):
 
     df = pd.json_normalize(response["content"], ["stats", "stats", "stats"])
     df = df.T.reset_index(drop=True)
-    df.columns = df.iloc[0]
-    df = df[1:]
+    df.columns = df.iloc[1]
+    df = df[2:3]
     df = df.apply(pd.Series.explode)
     df = df.iloc[:2].reset_index(drop=True)
     df["match_id"] = match_id
@@ -103,14 +103,14 @@ def get_single_match_stats(match_id: int):
     df["accurate_passes"] = df["accurate_passes"].str.split(" ").str.get(0)
 
     df["longball_accuracy"] = (
-        df["accurate_long_balls"]
+        df["long_balls_accurate"]
         .str.split(" ")
         .str.get(1)
         .str.replace("(", "", regex=True)
         .str.replace(")", "", regex=True)
         .str.replace("%", "", regex=True)
     )
-    df["accurate_long_balls"] = df["accurate_long_balls"].str.split(" ").str.get(0)
+    df["long_balls_accurate"] = df["long_balls_accurate"].str.split(" ").str.get(0)
 
     df["cross_accuracy"] = (
         df["accurate_crosses"]
@@ -122,15 +122,15 @@ def get_single_match_stats(match_id: int):
     )
     df["accurate_crosses"] = df["accurate_crosses"].str.split(" ").str.get(0)
 
-    df["tackles_won_percentage"] = (
-        df["tackles_won"]
+    df["tackles_succeeded_percentage"] = (
+        df["tackles_succeeded"]
         .str.split(" ")
         .str.get(1)
         .str.replace("(", "", regex=True)
         .str.replace(")", "", regex=True)
         .str.replace("%", "", regex=True)
     )
-    df["tackles_won"] = df["tackles_won"].str.split(" ").str.get(0)
+    df["tackles_succeeded"] = df["tackles_succeeded"].str.split(" ").str.get(0)
 
     df["ground_duels_won_percentage"] = (
         df["ground_duels_won"]
@@ -143,108 +143,30 @@ def get_single_match_stats(match_id: int):
     df["ground_duels_won"] = df["ground_duels_won"].str.split(" ").str.get(0)
 
     df["aerial_duels_won_percentage"] = (
-        df["aerial_duels_won"]
+        df["aerials_won"]
         .str.split(" ")
         .str.get(1)
         .str.replace("(", "", regex=True)
         .str.replace(")", "", regex=True)
         .str.replace("%", "", regex=True)
     )
-    df["aerial_duels_won"] = df["aerial_duels_won"].str.split(" ").str.get(0)
+    df["aerials_won"] = df["aerials_won"].str.split(" ").str.get(0)
 
-    df["successful_dribbles_percentage"] = (
-        df["successful_dribbles"]
+    df["succeeded_dribbles_percentage"] = (
+        df["dribbles_succeeded"]
         .str.split(" ")
         .str.get(1)
         .str.replace("(", "", regex=True)
         .str.replace(")", "", regex=True)
         .str.replace("%", "", regex=True)
     )
-    df["successful_dribbles"] = df["successful_dribbles"].str.split(" ").str.get(0)
-
-    df["expected_goals_against_(xga)"] = df.loc[
-        ::-1, "expected_goals_(xg)"
-    ].reset_index(drop=True)
-    df["xga_first_half"] = df.loc[::-1, "xg_first_half"].reset_index(drop=True)
-    df["xga_second_half"] = df.loc[::-1, "xg_second_half"].reset_index(drop=True)
-    df["xga_open_play"] = df.loc[::-1, "xg_open_play"].reset_index(drop=True)
-    try:
-        df["xga_set_play"] = df.loc[::-1, "xg_set_play"].reset_index(drop=True)
-    except KeyError:
-        df["xga_set_play"] = np.nan
-        df["xg_set_play"] = np.nan
-    try:
-        df["xga_on_target_(xgaot)"] = df.loc[::-1, "xg_on_target_(xgot)"].reset_index(
-            drop=True
-        )
-    except KeyError:
-        df["xga_on_target_(xgaot)"] = np.nan
-        df["xg_on_target_(xgot)"] = np.nan
-    try:
-        df["xga_penalty"] = df.loc[::-1, "xg_penalty"].reset_index(drop=True)
-    except KeyError:
-        df["xg_penalty"] = np.nan
-        df["xga_penalty"] = np.nan
+    df["dribbles_succeeded"] = df["dribbles_succeeded"].str.split(" ").str.get(0)
 
     df.fillna(0, inplace=True)
-    df = df.astype(
-        {
-            "ball_possession": "int32",
-            "expected_goals_(xg)": "float64",
-            "total_shots": "int32",
-            "big_chances": "int32",
-            "big_chances_missed": "int32",
-            "accurate_passes": "int32",
-            "fouls_committed": "int32",
-            "offsides": "int32",
-            "corners": "int32",
-            "shots_off_target": "int32",
-            "shots_on_target": "int32",
-            "blocked_shots": "int32",
-            "hit_woodwork": "int32",
-            "shots_inside_box": "int32",
-            "shots_outside_box": "int32",
-            "xg_first_half": "float64",
-            "xg_second_half": "float64",
-            "xg_open_play": "float64",
-            "xg_set_play": "float64",
-            "xg_on_target_(xgot)": "float64",
-            "passes": "int32",
-            "own_half": "int32",
-            "opposition_half": "int32",
-            "accurate_long_balls": "int32",
-            "accurate_crosses": "int32",
-            "throws": "int32",
-            "tackles_won": "int32",
-            "interceptions": "int32",
-            "blocks": "int32",
-            "clearances": "int32",
-            "keeper_saves": "int32",
-            "duels_won": "int32",
-            "ground_duels_won": "int32",
-            "aerial_duels_won": "int32",
-            "successful_dribbles": "int32",
-            "yellow_cards": "int32",
-            "red_cards": "int32",
-            "match_id": "int32",
-            "team": "string",
-            "pass_accuracy": "int32",
-            "longball_accuracy": "int32",
-            "cross_accuracy": "int32",
-            "tackles_won_percentage": "int32",
-            "ground_duels_won_percentage": "int32",
-            "aerial_duels_won_percentage": "int32",
-            "successful_dribbles_percentage": "int32",
-            "expected_goals_against_(xga)": "float64",
-            "xga_first_half": "float64",
-            "xga_second_half": "float64",
-            "xga_open_play": "float64",
-            "xga_set_play": "float64",
-            "xga_on_target_(xgaot)": "float64",
-            "xg_penalty": "float64",
-            "xga_penalty": "float64",
-        }
-    )
+    df = df.convert_dtypes()
+    for column in df.columns[~df.columns.isin(['match_id', 'team', 'team_short'])]:
+        if df[column].dtype == 'string':
+            df[column] = df[column].astype(np.float32)
 
     return df
 
